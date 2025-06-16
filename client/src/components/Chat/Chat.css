@@ -72,6 +72,22 @@
     justify-content: flex-start;
 }
 
+.message.system {
+    justify-content: center;
+}
+
+.message.system .bubble {
+    background: #e2e8f0;
+    color: #4a5568;
+    font-style: italic;
+    text-align: center;
+    max-width: 90%;
+}
+
+.message.system .meta {
+    display: none;
+}
+
 .bubble {
     background: #e0f2fe; /* Azul claro */
     padding: 8px; /* Reducido */

@@ -1,5 +1,5 @@
 // src/components/Chat/Chat.tsx
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, ChangeEvent, KeyboardEvent } from 'react';
 import './Chat.css';
 import { io, Socket } from 'socket.io-client';
 import { useLocation } from 'react-router-dom';
@@ -10,11 +10,16 @@ interface ChatMessage {
   author: string;
   message: string;
   time: string;
+  type?: 'user_joined' | 'message';
+}
+
+interface UserJoinedData {
+  username: string;
 }
 
 const Chat: React.FC = () => {
   const location = useLocation();
-  const user = location.state?.user as User; // Accede al usuario pasado por navigate
+  const user = location.state?.user as User;
   const [room, setRoom] = useState('sala1');
   const [currentMessage, setCurrentMessage] = useState('');
   const [messageList, setMessageList] = useState<ChatMessage[]>([]);
@@ -34,10 +39,21 @@ const Chat: React.FC = () => {
 
     socketRef.current.on('receive_message', (data: ChatMessage) => {
       console.log('Mensaje recibido:', data);
-      setMessageList(prev => [...prev, data]);
+      setMessageList((prev: ChatMessage[]) => [...prev, data]);
     });
 
-    socketRef.current.on('status', (data) => {
+    socketRef.current.on('user_joined', (data: UserJoinedData) => {
+      const joinMessage: ChatMessage = {
+        room,
+        author: 'System',
+        message: `${data.username} se ha unido al chat`,
+        time: new Date().toLocaleTimeString(),
+        type: 'user_joined'
+      };
+      setMessageList((prev: ChatMessage[]) => [...prev, joinMessage]);
+    });
+
+    socketRef.current.on('status', (data: { status: string }) => {
       console.debug('Estado recibido:', data);
       if (data.status === 'unauthorized') {
         window.location.href = '/';
@@ -69,10 +85,11 @@ const Chat: React.FC = () => {
         author: user.name,
         message: currentMessage,
         time: new Date().toLocaleTimeString(),
+        type: 'message'
       };
 
       await socketRef.current?.emit('send_message', messageData);
-      setMessageList(prev => [...prev, messageData]);
+      setMessageList((prev: ChatMessage[]) => [...prev, messageData]);
       setCurrentMessage('');
     }
   };
@@ -86,7 +103,7 @@ const Chat: React.FC = () => {
             type="text"
             placeholder="Sala..."
             value={room}
-            onChange={(e) => setRoom(e.target.value)}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => setRoom(e.target.value)}
           />
           <button onClick={joinRoom}>Unirse a la Sala</button>
         </div>
@@ -97,7 +114,7 @@ const Chat: React.FC = () => {
             {messageList.map((msg, index) => (
               <div
                 key={index}
-                className={`message ${msg.author === user.name ? 'own' : 'other'}`}
+                className={`message ${msg.author === user.name ? 'own' : 'other'} ${msg.type === 'user_joined' ? 'system' : ''}`}
               >
                 <div className="bubble">
                   <p>{msg.message}</p>
@@ -114,8 +131,8 @@ const Chat: React.FC = () => {
               type="text"
               placeholder="Mensaje..."
               value={currentMessage}
-              onChange={(e) => setCurrentMessage(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setCurrentMessage(e.target.value)}
+              onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => e.key === 'Enter' && sendMessage()}
             />
             <button onClick={sendMessage}>Enviar</button>
           </div>
